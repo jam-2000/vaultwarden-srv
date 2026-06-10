@@ -30,12 +30,11 @@ set -Eeuo pipefail
 #   - CrowdSec Docker enforcement:
 #       cscli decisions -> ipset crowdsec-blacklists -> DOCKER-USER DROP
 #   - Docker log rotation
-#   - SMTP enabled by default
 #   - SMTP provider presets:
-#       gmail   -> smtp.gmail.com:587 starttls
-#       mailjet -> in-v3.mailjet.com:2525 starttls
-#       brevo   -> smtp-relay.brevo.com:2525 starttls
-#       custom
+#       GMAIL   -> smtp.gmail.com:587 starttls
+#       SMTP2GO -> mail.smtp2go.com:2525 starttls
+#       BREVO   -> smtp-relay.brevo.com:2525 starttls
+#       CUSTOM
 #   - User-friendly colored prompts and explanation blocks
 #
 # Run:
@@ -56,8 +55,9 @@ OS_CODENAME=""
 DOMAIN_NAME=""
 ACME_EMAIL=""
 
+# Change this to "yes" if you want SMTP enabled by default.
 SMTP_ENABLE="no"
-SMTP_SERVICE="gmail"
+SMTP_SERVICE="GMAIL"
 SMTP_HOST=""
 SMTP_PORT=""
 SMTP_SECURITY=""
@@ -65,9 +65,6 @@ SMTP_FROM=""
 SMTP_USERNAME=""
 SMTP_PASSWORD=""
 
-# Recommended secure/convenient defaults:
-#   - No public registration
-#   - Admin can still invite users
 SIGNUPS_ALLOWED="false"
 INVITATIONS_ALLOWED="true"
 
@@ -242,16 +239,16 @@ normalize_smtp_service() {
 
   case "${value}" in
     1|gmail|google)
-      echo "gmail"
+      echo "GMAIL"
       ;;
-    2|mailjet|mail-jet)
-      echo "mailjet"
+    2|smtp2go|smtp-2-go|smtp_to_go)
+      echo "SMTP2GO"
       ;;
     3|brevo|sendinblue)
-      echo "brevo"
+      echo "BREVO"
       ;;
     4|custom|manual)
-      echo "custom"
+      echo "CUSTOM"
       ;;
     *)
       die "Invalid SMTP service: ${1}"
@@ -480,33 +477,35 @@ Needed for:
   - password reset
   - notifications
 
-Default:
-  yes
+Current default:
+  ${SMTP_ENABLE}
 
 Available presets:
-  1. Gmail
+  1. GMAIL
      Host: smtp.gmail.com
      Port: 587
      Security: starttls
 
-  2. Mailjet
-     Host: in-v3.mailjet.com
+  2. SMTP2GO
+     Host: mail.smtp2go.com
      Port: 2525
      Security: starttls
 
-  3. Brevo
+  3. BREVO
      Host: smtp-relay.brevo.com
      Port: 2525
      Security: starttls
 
-  4. Custom SMTP
+  4. CUSTOM
 
 Notes:
-  - Gmail requires Google App Password, not your normal Gmail password.
-  - DigitalOcean may block 587/465/25 outbound SMTP ports.
-  - Mailjet/Brevo with 2525/starttls are usually better for VPS providers."
+  - GMAIL requires Google App Password, not your normal Gmail password.
+  - SMTP2GO requires an SMTP user/password from SMTP2GO.
+  - BREVO requires an activated transactional SMTP account.
+  - Many VPS providers block 25/465/587 outbound SMTP ports.
+  - SMTP2GO/BREVO with 2525/starttls are usually better for VPS providers."
 
-  option_prompt SMTP_ENABLE "Configure SMTP now? yes/no" "no"
+  option_prompt SMTP_ENABLE "Configure SMTP now? yes/no" "${SMTP_ENABLE}"
   SMTP_ENABLE="$(normalize_yes_no "${SMTP_ENABLE}")"
 
   if [[ "${SMTP_ENABLE}" == "yes" ]]; then
@@ -514,28 +513,28 @@ Notes:
 "Choose the SMTP provider preset.
 
 Default:
-  1 / gmail
+  1 / GMAIL
 
 Options:
-  1  gmail
-  2  mailjet
-  3  brevo
-  4  custom
+  1  GMAIL
+  2  SMTP2GO
+  3  BREVO
+  4  CUSTOM
 
 The preset only fills host, port and TLS mode.
 You still need to enter sender address, username and password manually."
 
-    option_prompt SMTP_SERVICE "Choose SMTP service: 1=gmail, 2=mailjet, 3=brevo, 4=custom" "gmail"
+    option_prompt SMTP_SERVICE "Choose SMTP service: 1=GMAIL, 2=SMTP2GO, 3=BREVO, 4=CUSTOM" "GMAIL"
     SMTP_SERVICE="$(normalize_smtp_service "${SMTP_SERVICE}")"
 
     case "${SMTP_SERVICE}" in
-      gmail)
+      GMAIL)
         SMTP_HOST="smtp.gmail.com"
         SMTP_PORT="587"
         SMTP_SECURITY="starttls"
 
-        info_block "Gmail SMTP selected" \
-"Gmail defaults will be used:
+        info_block "GMAIL SMTP selected" \
+"GMAIL defaults will be used:
 
   SMTP_HOST=smtp.gmail.com
   SMTP_PORT=587
@@ -544,53 +543,53 @@ You still need to enter sender address, username and password manually."
 Important:
   - Use a Google App Password.
   - Do not use your normal Gmail account password.
-  - On DigitalOcean, port 587 may be blocked.
-  - If port 587 is blocked, Gmail SMTP will not work from this VM."
+  - On many VPS providers, port 587 may be blocked.
+  - If port 587 is blocked, GMAIL SMTP will not work from this VM."
         ;;
-      mailjet)
-        SMTP_HOST="in-v3.mailjet.com"
+      SMTP2GO)
+        SMTP_HOST="mail.smtp2go.com"
         SMTP_PORT="2525"
         SMTP_SECURITY="starttls"
 
-        info_block "Mailjet SMTP selected" \
-"Mailjet defaults will be used:
+        info_block "SMTP2GO SMTP selected" \
+"SMTP2GO defaults will be used:
 
-  SMTP_HOST=in-v3.mailjet.com
+  SMTP_HOST=mail.smtp2go.com
   SMTP_PORT=2525
   SMTP_SECURITY=starttls
 
 Required credentials:
-  - SMTP_USERNAME = Mailjet API Key
-  - SMTP_PASSWORD = Mailjet Secret Key
+  - SMTP_USERNAME = SMTP2GO SMTP username
+  - SMTP_PASSWORD = SMTP2GO SMTP password
 
-Your sender domain or sender address must be verified in Mailjet."
+Your sender domain or sender address must be verified in SMTP2GO."
         ;;
-      brevo)
+      BREVO)
         SMTP_HOST="smtp-relay.brevo.com"
         SMTP_PORT="2525"
         SMTP_SECURITY="starttls"
 
-        info_block "Brevo SMTP selected" \
-"Brevo defaults will be used:
+        info_block "BREVO SMTP selected" \
+"BREVO defaults will be used:
 
   SMTP_HOST=smtp-relay.brevo.com
   SMTP_PORT=2525
   SMTP_SECURITY=starttls
 
 Required credentials:
-  - SMTP_USERNAME = Brevo SMTP login
-  - SMTP_PASSWORD = Brevo SMTP key
+  - SMTP_USERNAME = BREVO SMTP login
+  - SMTP_PASSWORD = BREVO SMTP key
 
-Your sender domain or sender address must be verified in Brevo.
+Your sender domain or sender address must be verified in BREVO.
 
 Note:
-  Brevo commonly documents port 587, but this preset uses 2525/starttls
+  BREVO commonly documents port 587, but this preset uses 2525/starttls
   because it is often more convenient on VPS providers where standard SMTP
   ports may be blocked."
         ;;
-      custom)
-        info_block "Custom SMTP selected" \
-"Use this option if your SMTP provider is not Gmail, Mailjet or Brevo.
+      CUSTOM)
+        info_block "CUSTOM SMTP selected" \
+"Use this option if your SMTP provider is not GMAIL, SMTP2GO or BREVO.
 
 You will enter:
   - SMTP host
@@ -611,7 +610,7 @@ You will enter:
         ;;
     esac
 
-    if [[ "${SMTP_SERVICE}" != "custom" ]]; then
+    if [[ "${SMTP_SERVICE}" != "CUSTOM" ]]; then
       info_block "SMTP preset values" \
 "The selected preset produced these values:
 
@@ -640,17 +639,17 @@ Examples:
   yourname+vaultwarden@gmail.com
 
 Provider-specific notes:
-  - Gmail: usually your Gmail address or plus-alias.
-  - Mailjet/Brevo: use an address on a verified sender domain.
+  - GMAIL: usually your Gmail address or plus-alias.
+  - SMTP2GO/BREVO: use an address on a verified sender domain.
 
 This address should be allowed by your SMTP provider."
 
     option_prompt SMTP_FROM "SMTP from address" ""
 
     case "${SMTP_SERVICE}" in
-      gmail)
-        info_block "Gmail SMTP username" \
-"For Gmail, this is your real Gmail address.
+      GMAIL)
+        info_block "GMAIL SMTP username" \
+"For GMAIL, this is your real Gmail address.
 
 Example:
   yourname@gmail.com
@@ -661,31 +660,33 @@ If SMTP_FROM uses a plus-alias like:
 SMTP_USERNAME should still usually be:
   yourname@gmail.com"
 
-        option_prompt SMTP_USERNAME "Gmail SMTP username" ""
+        option_prompt SMTP_USERNAME "GMAIL SMTP username" ""
         ;;
-      mailjet)
-        info_block "Mailjet SMTP username" \
-"For Mailjet, use your Mailjet API Key.
+      SMTP2GO)
+        info_block "SMTP2GO SMTP username" \
+"For SMTP2GO, use your SMTP2GO SMTP username.
 
 Find it in:
-  Mailjet Dashboard
-    Account settings
-      SMTP and SEND API settings"
+  SMTP2GO Dashboard
+    Sending
+      SMTP Users
 
-        option_prompt SMTP_USERNAME "Mailjet API Key" ""
+Do not use your normal account password unless SMTP2GO explicitly created it as an SMTP credential."
+
+        option_prompt SMTP_USERNAME "SMTP2GO SMTP username" ""
         ;;
-      brevo)
-        info_block "Brevo SMTP username" \
-"For Brevo, use your Brevo SMTP login.
+      BREVO)
+        info_block "BREVO SMTP username" \
+"For BREVO, use your BREVO SMTP login.
 
 Find it in:
-  Brevo Dashboard
+  BREVO Dashboard
     SMTP & API
       SMTP"
 
-        option_prompt SMTP_USERNAME "Brevo SMTP login" ""
+        option_prompt SMTP_USERNAME "BREVO SMTP login" ""
         ;;
-      custom)
+      CUSTOM)
         info_block "SMTP username" \
 "Enter the SMTP username from your SMTP provider.
 
@@ -700,9 +701,9 @@ This may be:
     esac
 
     case "${SMTP_SERVICE}" in
-      gmail)
-        info_block "Gmail SMTP password" \
-"For Gmail, use a Google App Password.
+      GMAIL)
+        info_block "GMAIL SMTP password" \
+"For GMAIL, use a Google App Password.
 
 Do not use your normal Gmail password.
 
@@ -715,30 +716,30 @@ This value will be stored in:
 
 The script sets chmod 600 on the .env file."
 
-        option_secret SMTP_PASSWORD "Gmail App Password"
+        option_secret SMTP_PASSWORD "GMAIL App Password"
         ;;
-      mailjet)
-        info_block "Mailjet SMTP password" \
-"For Mailjet, use your Mailjet Secret Key.
+      SMTP2GO)
+        info_block "SMTP2GO SMTP password" \
+"For SMTP2GO, use your SMTP2GO SMTP password.
 
 Find it in:
-  Mailjet Dashboard
-    Account settings
-      SMTP and SEND API settings
+  SMTP2GO Dashboard
+    Sending
+      SMTP Users
 
 This value will be stored in:
   ${ENV_FILE}
 
 The script sets chmod 600 on the .env file."
 
-        option_secret SMTP_PASSWORD "Mailjet Secret Key"
+        option_secret SMTP_PASSWORD "SMTP2GO SMTP password"
         ;;
-      brevo)
-        info_block "Brevo SMTP password" \
-"For Brevo, use your Brevo SMTP key.
+      BREVO)
+        info_block "BREVO SMTP password" \
+"For BREVO, use your BREVO SMTP key.
 
 Find it in:
-  Brevo Dashboard
+  BREVO Dashboard
     SMTP & API
       SMTP
 
@@ -747,9 +748,9 @@ This value will be stored in:
 
 The script sets chmod 600 on the .env file."
 
-        option_secret SMTP_PASSWORD "Brevo SMTP key"
+        option_secret SMTP_PASSWORD "BREVO SMTP key"
         ;;
-      custom)
+      CUSTOM)
         info_block "SMTP password" \
 "Enter the SMTP password or SMTP API key from your provider.
 
@@ -1674,7 +1675,7 @@ CrowdSec manual test:
 
 SMTP examples:
 
-  Gmail:
+  GMAIL:
     SMTP_HOST='smtp.gmail.com'
     SMTP_PORT='587'
     SMTP_SECURITY='starttls'
@@ -1682,15 +1683,15 @@ SMTP examples:
     SMTP_USERNAME='yourname@gmail.com'
     SMTP_PASSWORD='GOOGLE_APP_PASSWORD'
 
-  Mailjet:
-    SMTP_HOST='in-v3.mailjet.com'
+  SMTP2GO:
+    SMTP_HOST='mail.smtp2go.com'
     SMTP_PORT='2525'
     SMTP_SECURITY='starttls'
     SMTP_FROM='vaultwarden@example.com'
-    SMTP_USERNAME='MAILJET_API_KEY'
-    SMTP_PASSWORD='MAILJET_SECRET_KEY'
+    SMTP_USERNAME='SMTP2GO_SMTP_USERNAME'
+    SMTP_PASSWORD='SMTP2GO_SMTP_PASSWORD'
 
-  Brevo:
+  BREVO:
     SMTP_HOST='smtp-relay.brevo.com'
     SMTP_PORT='2525'
     SMTP_SECURITY='starttls'
