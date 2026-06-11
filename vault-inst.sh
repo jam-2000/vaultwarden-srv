@@ -1699,6 +1699,12 @@ SMTP examples:
     SMTP_USERNAME='BREVO_SMTP_LOGIN'
     SMTP_PASSWORD='BREVO_SMTP_KEY'
 
+Quick Manual SMTP Tests:
+  nc -vz smtp-relay.brevo.com 587
+  nc -vz smtp-relay.brevo.com 2525
+  nc -vz smtp-relay.brevo.com 465
+  nc -vz smtp-relay.brevo.com 25
+
 Cloud firewall checklist:
   1. TCP 22 only from your public IP
   2. TCP 80 from 0.0.0.0/0 and ::/0
